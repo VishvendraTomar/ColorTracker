@@ -31,7 +31,7 @@ Ensure you have the following installed:
 1. Clone the repository:
 
    ```bash
-   git clone https://github.com/<your-username>/green-object-detection.git
+   git clone https://github.com/VishvendraTomar/green-object-detection.git
    cd green-object-detection
    ```
 
