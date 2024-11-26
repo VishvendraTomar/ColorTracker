@@ -129,23 +129,116 @@
 
 # adding post processing to find the better color 
 
+
+# import cv2
+# import numpy as np
+
+# # Define HSV range for green color
+# lower_hue = 35    # Lower bound for Hue (green)
+# upper_hue = 85    # Upper bound for Hue (green)
+# lower_saturation = 50  # Minimum Saturation value to ensure the color is intense enough
+# upper_saturation = 255  # Maximum Saturation
+# lower_value = 50  # Minimum Value (brightness)
+# upper_value = 255  # Maximum Value (brightness)
+
+# def create_mask(hsv_image):
+#     """
+#     Create a binary mask to detect green color using NumPy without cv2.inRange.
+#     """
+#     # Extract Hue, Saturation, and Value channels
+#     hue = hsv_image[..., 0]  # Hue channel
+#     saturation = hsv_image[..., 1]  # Saturation channel
+#     value = hsv_image[..., 2]  # Value channel
+    
+#     # Create conditions for the color range
+#     hue_condition = (hue >= lower_hue) & (hue <= upper_hue)
+#     saturation_condition = (saturation >= lower_saturation) & (saturation <= upper_saturation)
+#     value_condition = (value >= lower_value) & (value <= upper_value)
+    
+#     # Combine the conditions to create the mask (all conditions must be true)
+#     mask = hue_condition & saturation_condition & value_condition
+    
+#     # Convert the boolean mask to uint8 (0 or 255)
+#     mask = np.uint8(mask) * 255
+    
+#     return mask
+
+# def find_bounding_boxes(mask, min_area=500):
+#     """
+#     Find bounding boxes using NumPy without cv2.findContours.
+#     """
+#     # Get the coordinates of all non-zero pixels
+#     non_zero_coords = np.argwhere(mask > 0)
+
+#     # If no non-zero pixels are found, return an empty list
+#     if non_zero_coords.size == 0:
+#         return []
+
+#     # Get the minimum and maximum coordinates for x and y
+#     y_min, x_min = np.min(non_zero_coords, axis=0)
+#     y_max, x_max = np.max(non_zero_coords, axis=0)
+
+#     # Calculate area to filter noise
+#     area = (x_max - x_min) * (y_max - y_min)
+#     if area < min_area:
+#         return []
+
+#     return [(x_min, y_min, x_max, y_max)]  # Return bounding box as a list of tuples
+
+# # Initialize webcam
+# cap = cv2.VideoCapture(0)
+
+# while True:
+#     ret, frame = cap.read()
+#     if not ret:
+#         print("Failed to capture frame. Exiting...")
+#         break
+
+#     # Convert BGR to HSV
+#     hsv_image = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
+
+#     # Create mask
+#     mask = create_mask(hsv_image)
+
+#     # Post-processing: Morphological operations
+#     kernel = np.ones((5, 5), np.uint8)  # Kernel for morphological operations
+#     mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, kernel)  # Remove noise
+#     mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, kernel)  # Fill gaps
+
+#     # Apply Gaussian Blur to smooth mask
+#     mask = cv2.GaussianBlur(mask, (7, 7), 0)
+
+#     # Find bounding boxes using NumPy
+#     boxes = find_bounding_boxes(mask)
+
+#     # Draw bounding boxes
+#     for box in boxes:
+#         x_min, y_min, x_max, y_max = box
+#         cv2.rectangle(frame, (x_min, y_min), (x_max, y_max), (0, 255, 0), 2)
+
+#     # Display the original frame and the processed mask
+#     cv2.imshow("Original Frame", frame)
+#     cv2.imshow("Mask", mask)
+
+
+#     # Exit when 'q' is pressed
+#     if cv2.waitKey(1) & 0xFF == ord('q'):
+#         break
+
+# cap.release()
+# cv2.destroyAllWindows()
+
+
 import cv2
 import numpy as np
 
 # Define HSV range for green color
-lower_limit = np.array([35, 50, 50], dtype=np.uint8)  # Lower bound of green
-upper_limit = np.array([85, 255, 255], dtype=np.uint8)  # Upper bound of green
-
-
 lower_hue = 35    # Lower bound for Hue (green)
 upper_hue = 85    # Upper bound for Hue (green)
 lower_saturation = 50  # Minimum Saturation value to ensure the color is intense enough
 upper_saturation = 255  # Maximum Saturation
 lower_value = 50  # Minimum Value (brightness)
 upper_value = 255  # Maximum Value (brightness)
-
-
-
 
 def create_mask(hsv_image):
     """
@@ -169,6 +262,35 @@ def create_mask(hsv_image):
     
     return mask
 
+def find_bounding_boxes(mask, min_area=500):
+    """
+    Find bounding boxes for separate objects in the mask using NumPy.
+    """
+    # Label connected components in the mask
+    num_features, labeled_mask = cv2.connectedComponents(mask)
+
+    bounding_boxes = []
+
+    # Iterate through each connected component
+    for label in range(1, num_features):  # Skip the background label (0)
+        # Get the coordinates of all pixels belonging to the current component
+        coords = np.argwhere(labeled_mask == label)
+        
+        if coords.size == 0:
+            continue  # Skip empty components
+        
+        # Get the bounding box for the current component
+        y_min, x_min = np.min(coords, axis=0)
+        y_max, x_max = np.max(coords, axis=0)
+
+        # Calculate area to filter noise
+        area = (x_max - x_min) * (y_max - y_min)
+        if area >= min_area:
+            bounding_boxes.append((x_min, y_min, x_max, y_max))
+
+    return bounding_boxes
+
+
 
 
 # Initialize webcam
@@ -180,10 +302,10 @@ while True:
         print("Failed to capture frame. Exiting...")
         break
 
-    # Convert BGR to HSV using NumPy
+    # Convert BGR to HSV
     hsv_image = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
 
-
+    # Create mask
     mask = create_mask(hsv_image)
 
     # Post-processing: Morphological operations
@@ -194,15 +316,13 @@ while True:
     # Apply Gaussian Blur to smooth mask
     mask = cv2.GaussianBlur(mask, (7, 7), 0)
 
-    
-    contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    # Find bounding boxes using NumPy
+    boxes = find_bounding_boxes(mask)
 
-    # Draw bounding boxes for contours that meet size criteria
-    min_area = 500  # Minimum contour area to consider
-    for contour in contours:
-        if cv2.contourArea(contour) > min_area:
-            x, y, w, h = cv2.boundingRect(contour)
-            cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 255, 0), 2)
+    # Draw bounding boxes
+    for box in boxes:
+        x_min, y_min, x_max, y_max = box
+        cv2.rectangle(frame, (x_min, y_min), (x_max, y_max), (0, 255, 0), 2)
 
     # Display the original frame and the processed mask
     cv2.imshow("Original Frame", frame)
