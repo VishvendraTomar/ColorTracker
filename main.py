@@ -325,6 +325,7 @@ while True:
         cv2.rectangle(frame, (x_min, y_min), (x_max, y_max), (0, 255, 0), 2)
 
     # Display the original frame and the processed mask
+    
     cv2.imshow("Original Frame", frame)
     cv2.imshow("Mask", mask)
 
